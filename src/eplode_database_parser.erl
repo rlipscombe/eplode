@@ -2,8 +2,8 @@
 -export([parse/2]).
 
 %% @doc Parse the "/empeg/var/database" (or "database3") file.
-%% We need to do this before we can understand the 'playlists' file. Because we
-%% build the database records as tag => value maps, we need the parsed 'tags'
+%% We need to do this before we can understand the "playlists" file. Because we
+%% build the database records as tag => value maps, we need the parsed "tags"
 %% file.
 parse(RawDatabase, Tags) ->
     parse_database(Tags, RawDatabase, first_fid(), new_record(), eplode_db:new()).
@@ -17,7 +17,8 @@ new_record() -> maps:new().
 update_record(Tag, Data, Record) -> maps:put(Tag, Data, Record).
 
 %% @doc Each record is a list of {TagIndex, TagLength, TagData} tuples.
-%% TagIndex marks the end of the record (and TagLength, TagData are omitted).
+%% TagIndex == 255 marks the end of the record (and TagLength, TagData are
+%% omitted).
 %%
 %% The database ends when there are no more records to read.
 %%
