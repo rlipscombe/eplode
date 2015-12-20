@@ -29,12 +29,8 @@
 %%% @doc This module is responsible for discovering empeg car players on the
 %%% local network, by using UDP discovery.
 %%%
-%%% @todo We notify some other process (how do they register with us?) about
-%%% players we've seen. It's responsible for TTL expiring ones that have gone
-%%% away.
-%%%
-%%% @todo I suspect that the registration requires a named process, and a
-%%% specific supervision tree.
+%%% We notify 'eplode_discovery' when we find a player; it's responsible for
+%%% TTL-expiring ones that go away.
 start_link() ->
     gen_server:start_link(?MODULE, [], []).
 
@@ -74,8 +70,10 @@ handle_info(_Info, State) ->
 
 handle_discovery_packet(IP, Data) ->
     case parse_discovery_message(binary:split(Data, <<"\n">>, [global])) of
-        {ok, {Name, Id}} -> io:format("~p: ~p (~p)\n", [IP, Name, Id]);
-        _ -> ignore
+        {ok, {Name, Id}} ->
+            eplode_discovery:notify({IP, Name, Id});
+        _ ->
+            ignore
     end.
 
 parse_discovery_message(Lines) ->
