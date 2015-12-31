@@ -18,3 +18,10 @@ Then, assuming your empeg is at 10.0.0.29, and has Hijack installed:
 
     {Tags, Database, Playlists} = eplode_parser:parse(RawTags, RawPlaylists, RawDatabase),
     ok.
+
+## External Resources
+
+- The original empeg home page: http://www.empeg.com/
+- The (unofficial) Rio Car FAQ: http://www.riocar.org/modules.php?op=modload&name=FAQ&file=index
+- The "Hijack" kernel: http://empeg-hijack.sourceforge.net/
+- The unofficial empeg BBS: http://empegbbs.com/
