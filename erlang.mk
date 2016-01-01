@@ -16,7 +16,7 @@
 
 ERLANG_MK_FILENAME := $(realpath $(lastword $(MAKEFILE_LIST)))
 
-ERLANG_MK_VERSION = 2.0.0-pre.2-44-g03f2c68
+ERLANG_MK_VERSION = 2.0.0-pre.2-59-gfd32ae5
 
 # Core configuration.
 
@@ -84,7 +84,7 @@ all:: deps app rel
 rel::
 	$(verbose) :
 
-check:: clean app tests
+check:: tests
 
 clean:: clean-crashdump
 
@@ -4125,7 +4125,7 @@ define dep_autopatch2
 		$(call erlang,$(call dep_autopatch_appsrc_script.erl,$(1))); \
 	fi; \
 	$(call erlang,$(call dep_autopatch_appsrc.erl,$(1))); \
-	if [ -f $(DEPS_DIR)/$(1)/rebar.config -o -f $(DEPS_DIR)/$(1)/rebar.config.script ]; then \
+	if [ -f $(DEPS_DIR)/$(1)/rebar -o -f $(DEPS_DIR)/$(1)/rebar.config -o -f $(DEPS_DIR)/$(1)/rebar.config.script ]; then \
 		$(call dep_autopatch_fetch_rebar); \
 		$(call dep_autopatch_rebar,$(1)); \
 	else \
@@ -5038,6 +5038,11 @@ test-dir:
 		$(call core_find,$(TEST_DIR)/,*.erl) -pa ebin/
 endif
 
+ifeq ($(wildcard src),)
+test-build:: ERLC_OPTS=$(TEST_ERLC_OPTS)
+test-build:: clean deps test-deps
+	$(verbose) $(MAKE) --no-print-directory test-dir ERLC_OPTS="$(TEST_ERLC_OPTS)"
+else
 ifeq ($(wildcard ebin/test),)
 test-build:: ERLC_OPTS=$(TEST_ERLC_OPTS)
 test-build:: clean deps test-deps $(PROJECT).d
@@ -5054,6 +5059,7 @@ clean:: clean-test-dir
 clean-test-dir:
 ifneq ($(wildcard $(TEST_DIR)/*.beam),)
 	$(gen_verbose) rm -f $(TEST_DIR)/*.beam
+endif
 endif
 
 # Copyright (c) 2015, Loïc Hoguin <essen@ninenines.eu>
@@ -5183,6 +5189,8 @@ define bs_appsrc_lib
 ]}.
 endef
 
+# To prevent autocompletion issues with ZSH, we add "include erlang.mk"
+# separately during the actual bootstrap.
 ifdef SP
 define bs_Makefile
 PROJECT = $p
@@ -5192,17 +5200,21 @@ PROJECT_VERSION = 0.0.1
 # Whitespace to be used when creating files from templates.
 SP = $(SP)
 
-include erlang.mk
 endef
 else
 define bs_Makefile
 PROJECT = $p
-include erlang.mk
+PROJECT_DESCRIPTION = New project
+PROJECT_VERSION = 0.0.1
+
 endef
 endif
 
 define bs_apps_Makefile
 PROJECT = $p
+PROJECT_DESCRIPTION = New project
+PROJECT_VERSION = 0.0.1
+
 include $(call core_relpath,$(dir $(ERLANG_MK_FILENAME)),$(APPS_DIR)/app)/erlang.mk
 endef
 
@@ -5496,6 +5508,7 @@ endif
 	$(eval p := $(PROJECT))
 	$(eval n := $(PROJECT)_sup)
 	$(call render_template,bs_Makefile,Makefile)
+	$(verbose) echo "include erlang.mk" >> Makefile
 	$(verbose) mkdir src/
 ifdef LEGACY
 	$(call render_template,bs_appsrc,src/$(PROJECT).app.src)
@@ -5509,6 +5522,7 @@ ifneq ($(wildcard src/),)
 endif
 	$(eval p := $(PROJECT))
 	$(call render_template,bs_Makefile,Makefile)
+	$(verbose) echo "include erlang.mk" >> Makefile
 	$(verbose) mkdir src/
 ifdef LEGACY
 	$(call render_template,bs_appsrc_lib,src/$(PROJECT).app.src)
@@ -5883,7 +5897,7 @@ endif
 # Copyright (c) 2013-2015, Loïc Hoguin <essen@ninenines.eu>
 # This file is part of erlang.mk and subject to the terms of the ISC License.
 
-.PHONY: ct distclean-ct
+.PHONY: ct apps-ct distclean-ct
 
 # Configuration.
 
@@ -5918,17 +5932,33 @@ CT_RUN = ct_run \
 	-logdir $(CURDIR)/logs
 
 ifeq ($(CT_SUITES),)
-ct:
+ct: $(if $(IS_APP),,apps-ct)
 else
-ct: test-build
+ct: test-build $(if $(IS_APP),,apps-ct)
 	$(verbose) mkdir -p $(CURDIR)/logs/
 	$(gen_verbose) $(CT_RUN) -suite $(addsuffix _SUITE,$(CT_SUITES)) $(CT_OPTS)
+endif
+
+ifneq ($(ALL_APPS_DIRS),)
+apps-ct:
+	$(verbose) for app in $(ALL_APPS_DIRS); do $(MAKE) -C $$app ct IS_APP=1; done
+endif
+
+ifndef t
+CT_EXTRA =
+else
+ifeq (,$(findstring :,$t))
+CT_EXTRA = -group $t
+else
+t_words = $(subst :, ,$t)
+CT_EXTRA = -group $(firstword $(t_words)) -case $(lastword $(t_words))
+endif
 endif
 
 define ct_suite_target
 ct-$(1): test-build
 	$(verbose) mkdir -p $(CURDIR)/logs/
-	$(gen_verbose) $(CT_RUN) -suite $(addsuffix _SUITE,$(1)) $(CT_OPTS)
+	$(gen_verbose) $(CT_RUN) -suite $(addsuffix _SUITE,$(1)) $(CT_EXTRA) $(CT_OPTS)
 endef
 
 $(foreach test,$(CT_SUITES),$(eval $(call ct_suite_target,$(test))))
@@ -6014,46 +6044,6 @@ edoc: doc-deps
 distclean-edoc:
 	$(gen_verbose) rm -f doc/*.css doc/*.html doc/*.png doc/edoc-info
 
-# Copyright (c) 2015, Erlang Solutions Ltd.
-# This file is part of erlang.mk and subject to the terms of the ISC License.
-
-.PHONY: elvis distclean-elvis
-
-# Configuration.
-
-ELVIS_CONFIG ?= $(CURDIR)/elvis.config
-
-ELVIS ?= $(CURDIR)/elvis
-export ELVIS
-
-ELVIS_URL ?= https://github.com/inaka/elvis/releases/download/0.2.5/elvis
-ELVIS_CONFIG_URL ?= https://github.com/inaka/elvis/releases/download/0.2.5/elvis.config
-ELVIS_OPTS ?=
-
-# Core targets.
-
-help::
-	$(verbose) printf "%s\n" "" \
-		"Elvis targets:" \
-		"  elvis       Run Elvis using the local elvis.config or download the default otherwise"
-
-distclean:: distclean-elvis
-
-# Plugin-specific targets.
-
-$(ELVIS):
-	$(gen_verbose) $(call core_http_get,$(ELVIS),$(ELVIS_URL))
-	$(verbose) chmod +x $(ELVIS)
-
-$(ELVIS_CONFIG):
-	$(verbose) $(call core_http_get,$(ELVIS_CONFIG),$(ELVIS_CONFIG_URL))
-
-elvis: $(ELVIS) $(ELVIS_CONFIG)
-	$(verbose) $(ELVIS) rock -c $(ELVIS_CONFIG) $(ELVIS_OPTS)
-
-distclean-elvis:
-	$(gen_verbose) rm -rf $(ELVIS)
-
 # Copyright (c) 2014 Dave Cottlehuber <dch@skunkwerks.at>
 # This file is part of erlang.mk and subject to the terms of the ISC License.
 
@@ -6123,11 +6113,12 @@ distclean-escript:
 # Copyright (c) 2015, Loïc Hoguin <essen@ninenines.eu>
 # This file is contributed to erlang.mk and subject to the terms of the ISC License.
 
-.PHONY: eunit
+.PHONY: eunit apps-eunit
 
 # Configuration
 
 EUNIT_OPTS ?=
+EUNIT_ERL_OPTS ?=
 
 # Core targets.
 
@@ -6149,7 +6140,7 @@ define eunit.erl
 				_ -> ok
 			end
 	end,
-	case eunit:test([$(call comma_list,$(1))], [$(EUNIT_OPTS)]) of
+	case eunit:test($1, [$(EUNIT_OPTS)]) of
 		ok -> ok;
 		error -> halt(2)
 	end,
@@ -6161,14 +6152,30 @@ define eunit.erl
 	halt()
 endef
 
+EUNIT_ERL_OPTS += -pa $(TEST_DIR) $(DEPS_DIR)/*/ebin $(APPS_DIR)/*/ebin ebin
+
+ifdef t
+ifeq (,$(findstring :,$(t)))
+eunit: test-build
+	$(gen_verbose) $(call erlang,$(call eunit.erl,['$(t)']),$(EUNIT_ERL_OPTS))
+else
+eunit: test-build
+	$(gen_verbose) $(call erlang,$(call eunit.erl,fun $(t)/0),$(EUNIT_ERL_OPTS))
+endif
+else
 EUNIT_EBIN_MODS = $(notdir $(basename $(call core_find,ebin/,*.beam)))
 EUNIT_TEST_MODS = $(notdir $(basename $(call core_find,$(TEST_DIR)/,*.beam)))
 EUNIT_MODS = $(foreach mod,$(EUNIT_EBIN_MODS) $(filter-out \
-	$(patsubst %,%_tests,$(EUNIT_EBIN_MODS)),$(EUNIT_TEST_MODS)),{module,'$(mod)'})
+	$(patsubst %,%_tests,$(EUNIT_EBIN_MODS)),$(EUNIT_TEST_MODS)),'$(mod)')
 
-eunit: test-build
-	$(gen_verbose) $(ERL) -pa $(TEST_DIR) $(DEPS_DIR)/*/ebin ebin \
-		-eval "$(subst $(newline),,$(subst ",\",$(call eunit.erl,$(EUNIT_MODS))))"
+eunit: test-build $(if $(IS_APP),,apps-eunit)
+	$(gen_verbose) $(call erlang,$(call eunit.erl,[$(call comma_list,$(EUNIT_MODS))]),$(EUNIT_ERL_OPTS))
+
+ifneq ($(ALL_APPS_DIRS),)
+apps-eunit:
+	$(verbose) for app in $(ALL_APPS_DIRS); do $(MAKE) -C $$app eunit IS_APP=1; done
+endif
+endif
 
 # Copyright (c) 2013-2015, Loïc Hoguin <essen@ninenines.eu>
 # This file is part of erlang.mk and subject to the terms of the ISC License.
