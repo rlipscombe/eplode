@@ -7,3 +7,7 @@ You could use `minicom` (which requires messing around with configuration files
 as root), but it turns out that `screen` works just as well:
 
     screen /dev/ttyUSB1 115200
+
+Apparently this should work:
+
+    minicom -b 115200 -o -D /dev/ttyAMA0
