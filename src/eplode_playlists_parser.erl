@@ -9,35 +9,23 @@ parse(RawPlaylists, Database) ->
     % Each playlist is made up of little-endian FID values, which refer back to
     % the 'database' file.
 
-    State0 = {RawPlaylists, [], Database},
-    eplode_db:foldl(fun parse_playlist/3, State0, Database).
+    State1 = {RawPlaylists, eplode_playlists:new(), Database},
+    State2 = eplode_db:foldl(fun parse_playlist/3, State1, Database),
+    {_, Playlists, _} = State2,
+    Playlists.
 
 parse_playlist(Fid, #{<<"type">> := <<"playlist">>} = Record, {Raw, Playlists, Database} = _State) ->
     % Length is a binary string (all tag values are), in bytes.
     Length = binary_to_integer(maps:get(<<"length">>, Record)),
 
     % Logging:
-    #{<<"title">> := Title} = Record,
-    io:format("~.16B ~p is a playlist, length ~B bytes\n",
-              [Fid bsl 4, Title, Length]),
+    %#{<<"title">> := Title} = Record,
+    %io:format("~.16B ~p is a playlist, length ~B bytes\n",
+    %          [Fid bsl 4, Title, Length]),
 
     % Get those bytes from the 'playlists' data.
     <<PlaylistBytes:Length/binary, NextRaw/binary>> = Raw,
-
-    % That's a sequence of FIDs, so...let's figure it out:
-    dump_playlist(PlaylistBytes, Database),
-    {NextRaw, Playlists, Database};
+    Children = [ChildFid || <<ChildFid:32/little>> <= PlaylistBytes],
+    {NextRaw, eplode_playlists:put(Fid, Children, Playlists), Database};
 parse_playlist(_Fid, _Record, State) ->
     State.
-
-dump_playlist(<<>>, _Database) ->
-    ok;
-dump_playlist(<<ChildFid:32/little, Rest/binary>>, Database) ->
-    case eplode_db:get(ChildFid, Database) of
-        undefined ->
-            io:format("    ~.16B undefined\n", [ChildFid]);
-        ChildRecord ->
-            #{<<"title">> := Title} = ChildRecord,
-            io:format("    ~.16B ~p\n", [ChildFid, Title])
-    end,
-    dump_playlist(Rest, Database).
