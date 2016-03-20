@@ -10,7 +10,7 @@ parse(RawPlaylists, Database) ->
     % the 'database' file.
 
     State0 = {RawPlaylists, [], Database},
-    array:foldl(fun parse_playlist/3, State0, Database).
+    eplode_db:foldl(fun parse_playlist/3, State0, Database).
 
 parse_playlist(Fid, #{<<"type">> := <<"playlist">>} = Record, {Raw, Playlists, Database} = _State) ->
     % Length is a binary string (all tag values are), in bytes.
