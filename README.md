@@ -28,6 +28,14 @@ Or you can play with the native empeg protocol:
     {ok, _, RawPlaylists} = eplode_protocol:readfid(C, 5).
     {Tags, Database, Playlists} = eplode_parser:parse(RawTags, RawPlaylists, RawDatabase).
 
+Or, if you've got the database files saved locally, and you want to save time
+when hacking on the code:
+
+    {ok, RawTags} = file:read_file("examples/tags").
+    {ok, RawDatabase} = file:read_file("examples/database3").
+    {ok, RawPlaylists} = file:read_file("examples/playlists").
+    {Tags, Database, Playlists} = eplode_parser:parse(RawTags, RawPlaylists, RawDatabase).
+
 ## External Resources
 
 - The original empeg home page: http://www.empeg.com/
