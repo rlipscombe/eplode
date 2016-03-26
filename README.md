@@ -16,7 +16,7 @@ Then, assuming your empeg is at 10.0.0.29, and has Hijack installed:
     RawPlaylists = eplode_http_client:get_playlists(BaseUrl).
     RawDatabase = eplode_http_client:get_database(BaseUrl).
 
-    {Tags, Database, Playlists} = eplode_parser:parse(RawTags, RawPlaylists, RawDatabase).
+    Model = eplode_parser:parse(RawTags, RawPlaylists, RawDatabase).
 
 Or you can play with the native empeg protocol:
 
@@ -26,7 +26,7 @@ Or you can play with the native empeg protocol:
     {ok, _, RawTags} = eplode_protocol:readfid(C, 2).
     {ok, _, RawDatabase} = eplode_protocol:readfid(C, 3).
     {ok, _, RawPlaylists} = eplode_protocol:readfid(C, 5).
-    {Tags, Database, Playlists} = eplode_parser:parse(RawTags, RawPlaylists, RawDatabase).
+    Model = eplode_parser:parse(RawTags, RawPlaylists, RawDatabase).
 
 Or, if you've got the database files saved locally, and you want to save time
 when hacking on the code:
@@ -34,7 +34,7 @@ when hacking on the code:
     {ok, RawTags} = file:read_file("examples/tags").
     {ok, RawDatabase} = file:read_file("examples/database3").
     {ok, RawPlaylists} = file:read_file("examples/playlists").
-    {Tags, Database, Playlists} = eplode_parser:parse(RawTags, RawPlaylists, RawDatabase).
+    Model = eplode_parser:parse(RawTags, RawPlaylists, RawDatabase).
 
 ## External Resources
 
