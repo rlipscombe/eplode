@@ -1,5 +1,5 @@
 PROJECT = eplode
-DEPS = hackney idna
+DEPS = hackney idna sync
 dep_idna = git https://github.com/benoitc/erlang-idna 1.0.3
 dep_hackney = git https://github.com/benoitc/hackney 1.4.8
 
