@@ -18,11 +18,6 @@ parse_playlist(Fid, #{<<"type">> := <<"playlist">>} = Record, {Raw, Playlists, D
     % Length is a binary string (all tag values are), in bytes.
     Length = binary_to_integer(maps:get(<<"length">>, Record)),
 
-    % Logging:
-    %#{<<"title">> := Title} = Record,
-    %io:format("~.16B ~p is a playlist, length ~B bytes\n",
-    %          [Fid bsl 4, Title, Length]),
-
     % Get those bytes from the 'playlists' data.
     <<PlaylistBytes:Length/binary, NextRaw/binary>> = Raw,
     Children = [ChildFid || <<ChildFid:32/little>> <= PlaylistBytes],

@@ -27,3 +27,5 @@
 % <<"empeg-car-2", 0>>
 -define(FID_PLAYERTYPE,         7).
 -define(FID_VISUALLIST,         8).
+
+-define(FID_ROOTPLAYLIST,  16#100).
