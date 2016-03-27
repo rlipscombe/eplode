@@ -9,5 +9,7 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-    Procs = [?CHILD(eplode_udp_discovery, worker)],
+    Procs = [
+             %?CHILD(eplode_udp_discovery, worker)
+            ],
     {ok, {{one_for_one, 1, 5}, Procs}}.
