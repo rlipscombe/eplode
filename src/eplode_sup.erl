@@ -10,6 +10,7 @@ start_link() ->
 
 init([]) ->
     Procs = [
+             ?CHILD(eplode_http, worker)
              %?CHILD(eplode_udp_discovery, worker)
             ],
     {ok, {{one_for_one, 1, 5}, Procs}}.
