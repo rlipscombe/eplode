@@ -8,9 +8,10 @@ init(_Type, Req, Opts) ->
 
 handle(Req, State) ->
     {Id, _} = cowboy_req:binding(id, Req),
-    lager:notice("~p", [Id]),
-    % @todo XSS?
-    Body = Id,
+    % find the process registered with that name.
+    Result = gen_server:call({via, eplode_via, Id}, hello),
+    lager:notice("~p", [Result]),
+    Body = Result,
     Headers = [{<<"content-type">>, <<"text/plain">>}],
     {ok, Req2} = cowboy_req:reply(200, Headers, Body, Req),
     {ok, Req2, State}.
