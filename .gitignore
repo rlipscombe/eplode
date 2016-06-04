@@ -12,3 +12,5 @@ rel/example_project
 *.d
 pcaps/
 examples
+examples.tar.gz
+log/
