@@ -48,8 +48,7 @@ next_frame_23(<<FrameID:4/binary, Size:32/integer,
              I:1/integer, J:1/integer, K:1/integer, 0:5/integer,
              Rest/binary>>)
   when Size =/= 0, A =:= 0, B =:= 0, C =:= 0, I =:= 0, J =:= 0, K =:= 0 ->
-    io:format("~s ", [FrameID]),
-    io:format("~b ", [Size]),
+    io:format("~s: ", [FrameID]),
     <<Data:Size/binary, Frames/binary>> = Rest,
     parse_frame_data(FrameID, Size, Data),
     next_frame_23(Frames);
@@ -57,14 +56,45 @@ next_frame_23(_) ->
     ok.
 
 parse_frame_data(<<"TXXX">> = _FrameID, _Size, Data) ->
-    io:format("~p\n", [Data]);
+    {Description, Value} = split_txxx(Data),
+    io:format("~p\n", [{Description, Value}]);
 parse_frame_data(<<"T", _/binary>> = _FrameID, _Size, <<0:8, Latin1/binary>> = _Data) ->
     Text = unicode:characters_to_binary(Latin1, latin1, utf8),
-    io:format("~ts\n", [Text]);
+    io:format("\"~ts\"\n", [Text]);
 parse_frame_data(<<"T", _/binary>> = _FrameID, _Size, <<1:8, 16#ff, 16#fe, Unicode/binary>> = _Data) ->
-%    {Encoding, Length} = unicode:bom_to_encoding(Unicode),
-%
     Text = unicode:characters_to_binary(Unicode, {utf16, little}, utf8),
-    io:format("~ts\n", [Text]);
+    io:format("\"~ts\"\n", [Text]);
+parse_frame_data(<<"PRIV">> = _FrameID, _Size, Data) ->
+    [Owner, Private] = binary:split(Data, <<0>>, []),
+    % @todo If Owner == WM/*, then the value is defined by Microsoft, and is probably a GUID.
+    io:format("~s ~p\n", [Owner, Private]);
+parse_frame_data(<<"UFID">> = _FrameID, _Size, Data) ->
+    [Owner, Identifier] = binary:split(Data, <<0>>, []),
+    io:format("~s ~p\n", [Owner, Identifier]);
 parse_frame_data(_FrameID, _Size, Data) ->
     io:format("~p\n", [Data]).
+
+split_txxx(Data) ->
+    % Unicode TXXX frames are slightly annoying. They have two unicode strings
+    % (with BOM) separated by a unicode null.
+    %
+    % If we naively search for 00 00, we end up getting the trailing 00 from
+    % the preceding UTF-16 character.
+    %
+    % If we convert the whole thing to UTF-8 first, then we get a single null,
+    % but we screw up the second BOM.
+    %
+    % Since we know this is UTF-16, little-endian, we'll actually look for
+    % three nulls: 00 00 00, and split there.
+    {Description, Rest} = get_txxx_description(Data),
+    Value = get_txxx_value(Rest),
+    {Description, Value}.
+
+get_txxx_description(<<1:8, 16#ff, 16#fe, Bytes/binary>>) ->
+    [D, Rest] = binary:split(Bytes, <<0, 0, 0>>, []),
+    Description = unicode:characters_to_binary(<<D/binary, 0>>, {utf16, little}, utf8),
+    {Description, Rest}.
+
+get_txxx_value(<<16#ff, 16#fe, Bytes/binary>>) ->
+    Value = unicode:characters_to_binary(Bytes, {utf16, little}, utf8),
+    Value.
